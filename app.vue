@@ -13,7 +13,7 @@ import ReportFile from "./components/ReportFile.vue";
 
       <CookiesComponent />
 
-      <ReportFile />
+      <!-- <ReportFile /> -->
     </div>
   </div>
 </template>
