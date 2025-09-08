@@ -83,7 +83,7 @@ const restart = () => {
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col items-center justify-center gap-5 md:gap-6 lg:gap-[30px] pt-10 pb-20 _container">
+    <div class="min-h-screen flex flex-col items-center justify-center gap-5 md:gap-6 lg:gap-[30px] pt-10 pb-20">
         <div class="flex flex-col gap-[10px]">
             <h2
                 class="text-xl md:text-[1.625rem] lg:text-[2rem] 2xl:text-[2.875rem] font-medium text-center text-black">
