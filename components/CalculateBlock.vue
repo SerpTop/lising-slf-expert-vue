@@ -1,27 +1,33 @@
 <script setup>
 import { ref, reactive } from "vue";
-import html2pdf from "html2pdf.js";
+// import html2pdf from "html2pdf.js";
 import ReportFile from "./ReportFile.vue";
-
-const downloadPDF = () => {
-  const element = document.getElementById("report-file");
-
-  html2pdf()
-    .set({
-      margin: 10,
-      filename: "report.pdf",
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    })
-    .from(element)
-    .save();
-};
-
 const step = ref(1);
 const totalSteps = 4;
 const resultVisible = ref(false);
 const openModal = ref(false);
+const errors = reactive({});
+
+const downloadPDF = async () => {
+  if (process.client) {
+    const html2pdf = (await import("html2pdf.js")).default;
+    const element = document.getElementById("report-file");
+
+    html2pdf()
+      .set({
+        margin: 10,
+        filename: "report.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      })
+      .from(element)
+      .save();
+  }
+  openModal = true;
+};
+
+
 
 const form = reactive({
   leasePayments: null,
@@ -46,15 +52,44 @@ function parseDate(str) {
   if (!str) return null;
   const [d, m, y] = str.split(".").map(Number);
   if (!d || !m || !y) return null;
-  return new Date(2000 + y, m - 1, d);
+  return new Date(y, m - 1, d); 
 }
 
 function diffDays(date1, date2) {
   if (!date1 || !date2) return null;
-  return Math.round((date1 - date2) / (1000 * 60 * 60 * 24));
+  const diff = date1.getTime() - date2.getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
+
+
+
+
+const requiredFields = {
+  1: ["leasePayments", "advancePayment", "buyoutPrice", "dkpPrice", "transferDate"],
+  2: ["paidWithoutAdvance", "lastPaymentDate", "penalties", "insuranceExpenses"],
+  3: ["resaleDate", "seizureDate"],
+  4: ["buyoutOffer", "avitoPrice"],
+};
+
 const nextStep = () => {
+  // очистим ошибки
+  Object.keys(errors).forEach((key) => (errors[key] = null));
+
+  // какие поля обязательные на этом шаге
+  const fields = requiredFields[step.value] || [];
+
+  // проверка
+  let valid = true;
+  fields.forEach((field) => {
+    if (!form[field]) {
+      errors[field] = "Поле обязательно";
+      valid = false;
+    }
+  });
+
+  if (!valid) return; // останавливаемся если ошибки
+
   if (step.value < totalSteps) {
     step.value++;
   } else {
@@ -66,7 +101,6 @@ const nextStep = () => {
     const factUsageDays = seizureDate
       ? diffDays(seizureDate, transferDate)
       : null;
-
     result.value = [
       {
         title: "Стоимость ДФЛ (лизинг+аванс+выкуп), ₽",
@@ -156,15 +190,18 @@ const nextStep = () => {
             0.83 +
           " ₽",
       },
-      {
-        title: "Оценка Авито, ₽",
-        subtitle: Number(form.avitoPrice || 0) + " ₽",
-      },
+      // {
+      //   title: "Оценка Авито, ₽",
+      //   subtitle: Number(form.avitoPrice || 0) + " ₽",
+      // },
     ];
-
     resultVisible.value = true;
   }
 };
+
+
+
+
 const summ = computed(() => {
   return (
     Number(form.leasePayments || 0) +
@@ -178,9 +215,11 @@ const summ = computed(() => {
       Number(form.dkpPrice || 0)) -
     Number(form.penalties || 0) -
     Number(form.insuranceExpenses || 0) -
-    Number(form.storageExpenses || 50000) +
-    " ₽"
+    Number(form.storageExpenses || 50000)
   );
+});
+const summNum = computed(() => {
+  return Number(summ.value) || 0;
 });
 
 const prevStep = () => {
@@ -208,7 +247,7 @@ const restart = () => {
           Расчет долга лизинговой
         </h2>
         <span class="text-center text-black text-sm 2xl:text-base">
-          Сальдо встречных обязательств по договору выкупного лизинга
+          Сальдо встречных обязательств <br class="sm:hidden"> по договору выкупного лизинга
         </span>
       </div>
 
@@ -238,6 +277,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.leasePayments"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -250,6 +290,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.advancePayment"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -262,6 +303,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.buyoutPrice"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -274,6 +316,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.dkpPrice"
                 />
               </div>
               <div class="flex flex-col justify-between lg:col-span-2">
@@ -284,9 +327,10 @@ const restart = () => {
                   v-model="form.transferDate"
                   type="text"
                   required
-                  placeholder="дд.мм.гг"
-                  maska="##.##.##"
+                  placeholder="дд.мм.гггг"
+                  maska="##.##.####"
                   class="w-full"
+                  :errors="errors.transferDate"
                 />
               </div>
             </div>
@@ -313,6 +357,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.paidWithoutAdvance"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -323,9 +368,10 @@ const restart = () => {
                   v-model="form.lastPaymentDate"
                   type="text"
                   required
-                  placeholder="дд.мм.гг"
-                  maska="##.##.##"
+                  placeholder="дд.мм.гггг"
+                  maska="##.##.####"
                   class="w-full"
+                  :errors="errors.lastPaymentDate"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -338,6 +384,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.penalties"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -350,6 +397,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.insuranceExpenses"
                 />
               </div>
             </div>
@@ -374,9 +422,10 @@ const restart = () => {
                   v-model="form.resaleDate"
                   type="text"
                   required
-                  placeholder="дд.мм.гг"
-                  maska="##.##.##"
+                  placeholder="дд.мм.гггг"
+                  maska="##.##.####"
                   class="w-full"
+                  :errors="errors.resaleDate"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -387,9 +436,10 @@ const restart = () => {
                   v-model="form.seizureDate"
                   type="text"
                   required
-                  placeholder="дд.мм.гг"
-                  maska="##.##.##"
+                  placeholder="дд.мм.гггг"
+                  maska="##.##.####"
                   class="w-full"
+                  :errors="errors.seizureDate"
                 />
               </div>
               <div class="flex flex-col justify-between lg:col-span-2">
@@ -399,9 +449,10 @@ const restart = () => {
                 <BaseInput
                   v-model="form.storageExpenses"
                   type="number"
-                  required
+                
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.storageExpenses"
                 />
               </div>
             </div>
@@ -428,6 +479,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.buyoutOffer"
                 />
               </div>
               <div class="flex flex-col justify-between">
@@ -440,6 +492,7 @@ const restart = () => {
                   required
                   placeholder="0"
                   class="w-full"
+                  :errors="errors.avitoPrice"
                 />
               </div>
             </div>
@@ -504,7 +557,7 @@ const restart = () => {
               >
               <span
                 class="text-white font-medium text-lg 2xl:text-[1.625rem]"
-                >{{ summ }}</span
+                >{{ Math.abs(summNum).toLocaleString("ru-RU") }} ₽</span
               >
             </div>
           </div>
@@ -535,7 +588,7 @@ const restart = () => {
           <button @click="restart" class="btn btn-blue bg-[#C1CDDD]">
             Заполнить заново
           </button>
-          <button @click="downloadPDF" class="btn btn-main">
+          <button @click="downloadPDF(); openModal = true;" class="btn btn-main">
             <IconArrow />
             Скачать PDF-отчет
           </button>
