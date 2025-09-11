@@ -52,31 +52,6 @@ const form = reactive({
 
 const result = ref([]);
 
-// // --------- НОВЫЕ parseDate и diffDays ----------
-// function parseDate(str) {
-//   if (!str) return null;
-//   const parts = String(str).trim().split(".");
-//   if (parts.length !== 3) return null;
-//   let [d, m, y] = parts.map((p) => Number(p));
-//   if (!d || !m || !y) return null;
-//   // поддержка двухзначного года (на случай)
-//   if (y < 100) y = 2000 + y;
-//   // создаём дату (локальная) — но для вычислений используем UTC
-//   return new Date(y, m - 1, d);
-// }
-
-// function diffDays(date1, date2) {
-//   if (!(date1 instanceof Date) || !(date2 instanceof Date)) return null;
-//   const msPerDay = 24 * 60 * 60 * 1000;
-//   const utc1 = Date.UTC(date1.getFullYear(), date1.getMonth(), date1.getDate());
-//   const utc2 = Date.UTC(date2.getFullYear(), date2.getMonth(), date2.getDate());
-//   // возвращаем целое число дней (utc1 - utc2) / msPerDay
-//   return Math.floor((utc1 - utc2) / msPerDay);
-// }
-
-
-
-
 
 
 const requiredFields = {
@@ -86,14 +61,13 @@ const requiredFields = {
   4: ["buyoutOffer", "avitoPrice"],
 };
 
-// --- утилиты для дат ---
 function parseDate(str) {
   if (!str) return null;
   const parts = String(str).trim().split(".");
   if (parts.length !== 3) return null;
   let [d, m, y] = parts.map((p) => Number(p));
   if (!d || !m || !y) return null;
-  if (y < 100) y = 2000 + y; // поддержка двухзначного года
+  if (y < 100) y = 2000 + y;  
   return new Date(y, m - 1, d);
 }
 
